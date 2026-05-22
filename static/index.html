@@ -1,0 +1,196 @@
+<!-- =====================================================================
+     FILE: static/index.html
+     ===================================================================== -->
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Texas Hold'em · Premium</title>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<!-- ═══ MENU ═══ -->
+<div id="menuScreen" class="screen active">
+  <div class="hdr">
+    <span class="hdr-logo">TEXAS <span>HOLD'EM</span></span>
+    <span style="margin-left:auto;color:var(--muted);font-size:.78em">Premium AZ</span>
+  </div>
+  <div class="menu-inner">
+    <div class="menu-title">TEXAS<br><span>HOLD'EM</span></div>
+    <p class="menu-sub">Online · 0.20 sentdən başlayan masalar · Min 4 oyunçu</p>
+    <div class="box">
+      <h2>Profilini Seç</h2>
+      <input class="inp" id="playerName" placeholder="Adınız" value="" maxlength="16">
+      <div style="color:var(--muted);font-size:.78em;margin-top:6px">Avatar:</div>
+      <div class="avatar-grid" id="avatarGrid"></div>
+      <button class="btn btn-gold btn-full" onclick="UI.enterLobby()" style="margin-top:6px">🎰 Lobbiyə Keç</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LOBBY ═══ -->
+<div id="lobbyScreen" class="screen">
+  <div class="lobby-main">
+    <div class="hdr">
+      <span class="hdr-logo">LOBBY</span>
+      <span class="hdr-me" onclick="UI.showScreen('menuScreen')" title="Profili dəyiş">
+        <span class="av" id="hdrAv">🦁</span>
+        <span class="nm" id="hdrNm">Oyunçu</span>
+        <span class="ch" id="hdrCh">💰 10,000</span>
+      </span>
+    </div>
+    <div class="lobby-banner">
+      <div class="lb-ic">🃏</div>
+      <div>
+        <div class="lb-t">PREMIUM POKER SEZONU</div>
+        <div class="lb-s">Min 4 oyunçu → 10 sn geri sayım → oyun başlayır</div>
+      </div>
+    </div>
+    <div class="league-tabs" id="leagueTabs"></div>
+    <div class="lobby-list" id="lobbyList"></div>
+    <button class="mob-chat-btn" onclick="UI.toggleMobChat()">💬</button>
+    <button class="leaderboard-btn" onclick="UI.showLeaderboard()" title="Liderlər lövhəsi">🏆</button>
+  </div>
+  <div class="lobby-side" id="lobbySide">
+    <button class="close-mob" onclick="UI.toggleMobChat()">×</button>
+    <div class="side-title">💬 Canlı Chat</div>
+    <div class="side-online">Online: <strong id="onlineCount">0</strong> oyunçu</div>
+    <div class="lobby-chat-list" id="lobbyChatList"></div>
+    <div class="lobby-chat-in">
+      <input type="text" id="lobbyChatInp" placeholder="Hamıya yaz..." maxlength="120"
+             onkeydown="if(event.key==='Enter')Game.sendLobbyChat()">
+      <button onclick="Game.sendLobbyChat()">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LEADERBOARD MODAL ═══ -->
+<div class="overlay" id="leaderboardOverlay">
+  <div class="overlay-box leaderboard-box">
+    <div class="overlay-title">🏆 Liderlər Lövhəsi</div>
+    <div class="lb-tabs">
+      <div class="lb-tab active" data-type="chips" onclick="UI.switchLeaderboard('chips')">💰 Chips</div>
+      <div class="lb-tab" data-type="winnings" onclick="UI.switchLeaderboard('winnings')">🏆 Qaliblər</div>
+    </div>
+    <div class="lb-list" id="leaderboardList"></div>
+    <div class="my-stats" id="myStatsBox"></div>
+    <div class="overlay-btns">
+      <button class="btn btn-gray" onclick="UI.closeLeaderboard()">Bağla</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ WAITING ═══ -->
+<div id="waitingScreen" class="screen" style="align-items:center;justify-content:center;background:var(--bg)">
+  <div class="wait-inner">
+    <div class="box">
+      <h2 id="waitTitle">Gözləmə Otağı</h2>
+      <div class="room-code" onclick="UI.copyRoomId()">
+        <div class="room-code-val" id="waitRoomId">—</div>
+        <div class="room-code-hint" id="copyHint">📋 Klikləyib kopyala</div>
+      </div>
+      <div id="waitPlayersList"></div>
+      <p class="wait-status" id="waitStatus">Oyunçular gözlənilir…</p>
+      <div class="countdown-num" id="countdownNum" style="display:none">10</div>
+      <button class="btn btn-gray btn-full" onclick="UI.leaveRoom()">← Lobbiyə Qayıt</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ GAME ═══ -->
+<div id="gameScreen" class="screen">
+  <div class="game-main">
+    <div class="topbar">
+      <span class="phase-pill" id="phasePill">—</span>
+      <span class="tb-item">Otaq: <strong id="tbRoom">—</strong></span>
+      <span class="tb-item">Pot: <strong id="tbPot">0</strong></span>
+      <span class="tb-item">Mərc: <strong id="tbBet">0</strong></span>
+      <span class="tb-item">Raund: <strong id="tbRound">—</strong></span>
+      <div class="tb-right">
+        <span class="tb-turn" id="tbTurn" style="display:none">⟳ NÖVBƏ SİZDƏ</span>
+        <button class="chat-toggle" onclick="UI.toggleSide()" title="Chat">💬</button>
+        <button class="chat-toggle" onclick="UI.leaveRoom()" title="Lobbiyə qayıt">🚪</button>
+      </div>
+    </div>
+    <div class="table-area">
+      <div class="poker-table" id="pokerTable">
+        <div class="table-logo">TEXAS HOLD'EM</div>
+        <div class="pot-display" id="potDisp">Pot: 0</div>
+        <div class="community-area" id="communityArea"></div>
+        <div class="seat opp-pos-0" id="opp0" style="display:none"></div>
+        <div class="seat opp-pos-1" id="opp1" style="display:none"></div>
+        <div class="seat opp-pos-2" id="opp2" style="display:none"></div>
+        <div class="seat opp-pos-3" id="opp3" style="display:none"></div>
+        <div class="seat opp-pos-4" id="opp4" style="display:none"></div>
+        <div class="my-seat-wrap">
+          <div class="my-seat" id="mySeat">
+            <div class="seat-badges" id="myBadges"></div>
+            <div class="seat-av" id="myAv">🦁</div>
+            <div class="seat-name" id="myName">Sən</div>
+            <div class="seat-chips" id="myChips">10,000</div>
+            <div class="seat-bet" id="myBet"></div>
+            <div class="my-cards" id="myCards"></div>
+          </div>
+        </div>
+        <div id="timerBar"></div>
+      </div>
+    </div>
+    <div class="hand-hint" id="handHint"></div>
+    <div class="actions-bar" id="actionsBar" style="display:none">
+      <div class="quick-bets" id="quickBets"></div>
+      <div class="action-btns">
+        <button class="btn btn-red btn-sm" onclick="Game.action('fold')">Fold</button>
+        <button class="btn btn-gray btn-sm" id="btnCheck" onclick="Game.action('check')" style="display:none">Check</button>
+        <button class="btn btn-blue btn-sm" id="btnCall" onclick="Game.action('call')">
+          Call<span class="call-sub" id="callSub"></span>
+        </button>
+        <button class="btn btn-gold btn-sm" onclick="UI.toggleRaise()">Raise ▲</button>
+        <button class="btn btn-purple btn-sm" onclick="Game.action('allin')">All-In 🔥</button>
+      </div>
+      <div class="raise-panel" id="raisePanel">
+        <div style="font-size:.78em;color:var(--muted);margin-bottom:6px">Raise miqdarı seçin:</div>
+        <div class="raise-slider-row">
+          <input type="range" id="raiseSlider" min="100" max="10000" step="50" value="200" oninput="UI.updateRaise(this.value)">
+          <span class="raise-val" id="raiseVal">200</span>
+        </div>
+        <div class="raise-actions">
+          <button class="btn btn-gray btn-xs" onclick="UI.closeRaise()">İptal</button>
+          <button class="btn btn-gold btn-xs" onclick="Game.confirmRaise()">Raise Et!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="game-side" id="gameSide">
+    <div class="side-tabs">
+      <div class="side-tab active" id="tabLog" onclick="UI.switchTab('log')">Log</div>
+      <div class="side-tab" id="tabChat" onclick="UI.switchTab('chat')">Chat</div>
+    </div>
+    <div class="side-panel active" id="panelLog"></div>
+    <div class="chat-panel" id="panelChat"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInp" placeholder="Masada yaz…" maxlength="80"
+             onkeydown="if(event.key==='Enter')Game.sendChat()">
+      <button class="chat-send" onclick="Game.sendChat()">→</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="resultOverlay">
+  <div class="overlay-box">
+    <div class="overlay-title" id="overlayTitle">Nəticə</div>
+    <div id="overlayBody"></div>
+    <div class="overlay-btns">
+      <button class="btn btn-green" id="nextRoundBtn" onclick="Game.nextRound()" style="display:none">Davam Et</button>
+      <button class="btn btn-gray" onclick="UI.closeOverlay()">Bağla</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
